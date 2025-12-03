@@ -3,21 +3,32 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <!-- 核心修复1：彻底禁止发送 Referrer，防止网易云图片服务器返回 403 Forbidden -->
     <meta name="referrer" content="no-referrer">
-    <!-- 核心修复2：强制将页面内的 HTTP 资源请求升级为 HTTPS，解决 GitHub Pages 的混合内容报错 -->
     <meta http-equiv="Content-Security-Policy" content="upgrade-insecure-requests">
     
     <title>My Favorite Albums - Heart Collage</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <!-- 引入 html2canvas 用于截图保存 -->
+    <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap');
 
+        :root {
+            --collage-max-width: 600px;
+            --bg-color: #ffffff;
+            --bg-image: none;
+        }
+
         body {
             font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-            background-color: #ffffff;
+            background-color: var(--bg-color);
+            background-image: var(--bg-image);
+            background-size: cover;
+            background-position: center;
+            background-attachment: fixed;
             color: #1a1a1a;
             user-select: none;
+            transition: background 0.3s ease;
         }
 
         /* ---------------- Toast 提示条 ---------------- */
@@ -51,11 +62,17 @@
         /* ---------------- 拼图网格布局 ---------------- */
         .collage-container {
             width: 100%;
-            max-width: 600px;
+            max-width: var(--collage-max-width);
             margin: 0 auto;
             padding: 20px;
             display: flex;
             justify-content: center;
+            transition: max-width 0.3s ease;
+            /* 用于 html2canvas 截图时的背景显示 */
+            background-color: transparent; 
+            background-image: none;
+            background-size: cover;
+            background-position: center;
         }
 
         .collage-grid {
@@ -68,12 +85,13 @@
         }
 
         .album-box {
-            background-color: #f3f4f6;
+            background-color: rgba(243, 244, 246, 0.8); /* 半透明背景 */
             border: 2px solid #1a1a1a;
             cursor: pointer;
             position: relative;
             overflow: hidden;
-            transition: transform 0.1s, border-color 0.2s;
+            transition: transform 0.1s, border-color 0.2s, background-color 0.3s;
+            backdrop-filter: blur(5px);
         }
 
         .album-box:hover {
@@ -81,6 +99,7 @@
             z-index: 10;
             transform: scale(1.02);
             box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            background-color: rgba(243, 244, 246, 1);
         }
 
         .album-box:active { transform: scale(0.98); }
@@ -167,41 +186,172 @@
             box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
         }
         .modal-overlay.active .modal-content { transform: scale(1); }
+
+        /* Controls */
+        .controls-container {
+            background: rgba(255, 255, 255, 0.8);
+            backdrop-filter: blur(10px);
+            padding: 15px;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
+        .color-option {
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            cursor: pointer;
+            border: 2px solid transparent;
+            transition: border-color 0.2s, transform 0.2s;
+            position: relative;
+            overflow: hidden;
+        }
+        .color-option:hover {
+            transform: scale(1.1);
+        }
+        .color-option.active {
+            border-color: #1a1a1a;
+            transform: scale(1.1);
+            box-shadow: 0 0 0 2px rgba(0,0,0,0.1);
+        }
+        
+        /* 上传按钮样式 */
+        .upload-btn-wrapper {
+            position: relative;
+            overflow: hidden;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .upload-btn {
+            border: 2px solid #e5e7eb;
+            color: #6b7280;
+            background-color: white;
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .upload-btn:hover {
+            border-color: #1a1a1a;
+            color: #1a1a1a;
+        }
+
+        .upload-btn-wrapper input[type=file] {
+            font-size: 100px;
+            position: absolute;
+            left: 0;
+            top: 0;
+            opacity: 0;
+            cursor: pointer;
+            width: 100%;
+            height: 100%;
+        }
+        
+        /* 保存按钮样式 */
+        .save-btn {
+            background-color: #1a1a1a;
+            color: white;
+            padding: 8px 16px;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            transition: background-color 0.2s, transform 0.1s;
+        }
+        
+        .save-btn:hover {
+            background-color: #333;
+        }
+        
+        .save-btn:active {
+            transform: scale(0.98);
+        }
     </style>
 </head>
 <body class="min-h-screen flex flex-col items-center py-8">
 
-    <h1 class="text-3xl md:text-4xl mb-6 text-center text-gray-900 tracking-tight">
+    <h1 class="text-3xl md:text-4xl mb-6 text-center text-gray-900 tracking-tight" style="text-shadow: 0 1px 2px rgba(255,255,255,0.5);">
         my <span class="font-bold">favorite</span> albums
     </h1>
 
     <div id="toast" class="toast"></div>
 
-    <div class="collage-container">
+    <div class="collage-container" id="collageContainer">
         <div class="collage-grid" id="gridContainer">
             <!-- Grid generated by JS -->
         </div>
     </div>
 
-    <div class="mt-8 text-center px-4 space-y-2">
-        <p class="text-sm text-gray-600">点击方块添加专辑</p>
-        <div class="text-xs text-gray-400">
-            支持 <span class="font-bold text-red-600">网易云链接</span> (网页/分享) 或 <span class="font-bold text-blue-600">直接搜专辑名</span>
+    <div class="mt-8 text-center px-4 space-y-4 w-full max-w-xs">
+        <div class="text-sm text-gray-600" style="text-shadow: 0 1px 1px rgba(255,255,255,0.5);">
+            <p>点击方块添加专辑</p>
+            <div class="text-xs text-gray-400 mt-1">
+                支持 <span class="font-bold text-red-600">网易云链接</span> (网页/分享) 或 直接粘贴图片链接
+            </div>
         </div>
-        <button onclick="clearAll()" class="mt-4 text-xs text-gray-400 underline hover:text-red-500">
-            清空所有
-        </button>
+
+        <!-- Controls Section -->
+        <div class="controls-container space-y-3">
+            <!-- Size Slider -->
+            <div class="flex items-center justify-between text-xs text-gray-600">
+                <label for="sizeSlider">调整大小</label>
+                <input type="range" id="sizeSlider" min="300" max="1000" step="10" value="600" class="w-32 accent-black">
+            </div>
+
+            <!-- Background Controls -->
+            <div class="flex items-center justify-between text-xs text-gray-600">
+                <span>背景设置</span>
+                <div class="flex gap-2 items-center" id="bgControls">
+                    <div class="color-option active" data-bg-color="#ffffff" data-bg-image="none" style="background-color: #ffffff;" title="白色"></div>
+                    <div class="color-option" data-bg-color="#f3f4f6" data-bg-image="none" style="background-color: #f3f4f6;" title="浅灰"></div>
+                    <div class="color-option" data-bg-color="#fef3c7" data-bg-image="none" style="background-color: #fef3c7;" title="米色"></div>
+                    <div class="color-option" data-bg-color="transparent" data-bg-image="linear-gradient(to right, #ffecd2 0%, #fcb69f 100%)" style="background-image: linear-gradient(to right, #ffecd2 0%, #fcb69f 100%);" title="渐变"></div>
+                    
+                    <!-- 本地上传按钮 -->
+                    <div class="upload-btn-wrapper" title="上传本地图片">
+                        <button class="upload-btn">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+                            </svg>
+                        </button>
+                        <input type="file" id="bgUpload" accept="image/*">
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Action Buttons -->
+        <div class="flex justify-between items-center pt-2">
+            <button onclick="clearAll()" class="text-xs text-gray-400 underline hover:text-red-500" style="text-shadow: 0 1px 1px rgba(255,255,255,0.5);">
+                清空所有
+            </button>
+            
+            <button id="saveBtn" class="save-btn">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                  <path fill-rule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clip-rule="evenodd" />
+                </svg>
+                保存图片
+            </button>
+        </div>
     </div>
 
     <!-- Input Modal -->
     <div class="modal-overlay" id="inputModal">
         <div class="modal-content">
             <h3 class="text-lg font-bold mb-1">设置专辑封面</h3>
-            <p class="text-xs text-gray-500 mb-4">输入网易云链接，或者直接输入 "歌手 专辑名" 进行搜索。</p>
+            <p class="text-xs text-gray-500 mb-4">粘贴网易云专辑链接 (如: https://music.163.com/...) 或直接粘贴图片地址。</p>
             
             <div class="relative">
                 <input type="text" id="urlInput" 
-                       placeholder="例如: 蛋堡 月光" 
+                       placeholder="粘贴链接..." 
                        class="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-black transition-all text-sm"
                        autocomplete="off">
             </div>
@@ -227,11 +377,21 @@
         ];
 
         let currentBoxId = null;
-        const storageKey = 'heart_collage_v3';
+        const storageKey = 'heart_collage_v6_save'; 
+        let appData = {
+            albums: {},
+            settings: {
+                size: 600,
+                bgColor: '#ffffff',
+                bgImage: 'none',
+                isCustomBg: false 
+            }
+        };
 
         document.addEventListener('DOMContentLoaded', () => {
-            renderGrid();
             loadData();
+            renderGrid();
+            initControls();
         });
 
         function renderGrid() {
@@ -242,33 +402,174 @@
                 div.className = `album-box ${item.class}`;
                 div.id = `box-${item.id}`;
                 div.onclick = () => openModal(item.id);
-                div.innerHTML = `<div class="spinner"></div><img class="album-img" alt="">`;
+                // 重要：添加 crossorigin="anonymous"
+                div.innerHTML = `<div class="spinner"></div><img class="album-img" alt="" crossorigin="anonymous">`;
                 container.appendChild(div);
             });
+            for (const [id, url] of Object.entries(appData.albums)) {
+                updateBoxUI(id, url);
+            }
         }
 
         function loadData() {
             try {
-                const data = JSON.parse(localStorage.getItem(storageKey) || '{}');
-                for (const [id, url] of Object.entries(data)) {
-                    updateBoxUI(id, url);
+                const data = localStorage.getItem(storageKey);
+                if (data) {
+                    appData = JSON.parse(data);
+                    if (!appData.settings) {
+                        appData.settings = { size: 600, bgColor: '#ffffff', bgImage: 'none', isCustomBg: false };
+                    }
                 }
-            } catch(e) {}
+            } catch(e) {
+                console.error("Load failed", e);
+                appData = { albums: {}, settings: { size: 600, bgColor: '#ffffff', bgImage: 'none', isCustomBg: false } };
+            }
+            applySettings();
         }
 
-        function saveData(id, url) {
-            const data = JSON.parse(localStorage.getItem(storageKey) || '{}');
-            data[id] = url;
-            localStorage.setItem(storageKey, JSON.stringify(data));
+        function saveData() {
+            try {
+                localStorage.setItem(storageKey, JSON.stringify(appData));
+            } catch (e) {
+                console.error("Storage error", e);
+                showToast('数据过大，背景图可能未保存', 'error');
+            }
         }
+
+        function applySettings() {
+            // Apply Size
+            document.documentElement.style.setProperty('--collage-max-width', `${appData.settings.size}px`);
+            const sizeSlider = document.getElementById('sizeSlider');
+            if (sizeSlider) sizeSlider.value = appData.settings.size;
+
+            // Apply Background
+            document.documentElement.style.setProperty('--bg-color', appData.settings.bgColor);
+            document.documentElement.style.setProperty('--bg-image', appData.settings.bgImage);
+            updateActiveColorOption();
+        }
+
+        function initControls() {
+            // Size Slider
+            const sizeSlider = document.getElementById('sizeSlider');
+            sizeSlider.addEventListener('input', (e) => {
+                const newSize = e.target.value;
+                appData.settings.size = newSize;
+                document.documentElement.style.setProperty('--collage-max-width', `${newSize}px`);
+                saveData();
+            });
+
+            // Background Controls
+            const bgControls = document.getElementById('bgControls');
+            bgControls.addEventListener('click', (e) => {
+                const option = e.target.closest('.color-option');
+                if (!option) return;
+
+                const bgColor = option.dataset.bgColor;
+                const bgImage = option.dataset.bgImage;
+
+                appData.settings.bgColor = bgColor;
+                appData.settings.bgImage = bgImage;
+                appData.settings.isCustomBg = false;
+                
+                applySettings();
+                saveData();
+            });
+
+            // Background Upload
+            const bgUpload = document.getElementById('bgUpload');
+            bgUpload.addEventListener('change', function(e) {
+                if (this.files && this.files[0]) {
+                    if (this.files[0].size > 3 * 1024 * 1024) {
+                        showToast('图片太大，请选择 <3MB 的图片', 'error');
+                        return;
+                    }
+                    
+                    const reader = new FileReader();
+                    reader.onload = function(e) {
+                        const bgImageUrl = `url(${e.target.result})`;
+                        appData.settings.bgColor = 'transparent';
+                        appData.settings.bgImage = bgImageUrl;
+                        appData.settings.isCustomBg = true;
+                        applySettings();
+                        saveData();
+                        bgUpload.value = ''; 
+                    };
+                    reader.readAsDataURL(this.files[0]);
+                }
+            });
+            
+            // Save Image Button
+            const saveBtn = document.getElementById('saveBtn');
+            saveBtn.addEventListener('click', saveCollageAsImage);
+        }
+
+        function updateActiveColorOption() {
+            const options = document.querySelectorAll('.color-option');
+            options.forEach(opt => opt.classList.remove('active'));
+            
+            if (appData.settings.isCustomBg) return; 
+
+            const activeOption = Array.from(options).find(opt => 
+                opt.dataset.bgColor === appData.settings.bgColor && 
+                opt.dataset.bgImage === appData.settings.bgImage
+            );
+            if (activeOption) activeOption.classList.add('active');
+        }
+        
+        // --- Save Image Logic ---
+        function saveCollageAsImage() {
+            const container = document.getElementById('collageContainer');
+            const body = document.body;
+            
+            showToast('正在生成图片...', 'loading');
+            
+            // 关键：将当前 Body 的背景临时应用到 Container 上，确保截图包含背景
+            const originalBgColor = container.style.backgroundColor;
+            const originalBgImage = container.style.backgroundImage;
+            const originalBgSize = container.style.backgroundSize;
+            
+            container.style.backgroundColor = getComputedStyle(body).backgroundColor;
+            container.style.backgroundImage = getComputedStyle(body).backgroundImage;
+            container.style.backgroundSize = 'cover';
+
+            html2canvas(container, {
+                useCORS: true, 
+                scale: 2, 
+                backgroundColor: null, 
+                allowTaint: true
+            }).then(canvas => {
+                // 恢复
+                container.style.backgroundColor = originalBgColor;
+                container.style.backgroundImage = originalBgImage;
+                container.style.backgroundSize = originalBgSize;
+                
+                // 下载
+                const link = document.createElement('a');
+                link.download = 'my-heart-collage.png';
+                link.href = canvas.toDataURL('image/png');
+                link.click();
+                
+                showToast('保存成功！', 'success');
+            }).catch(err => {
+                console.error('Save failed:', err);
+                // 恢复
+                container.style.backgroundColor = originalBgColor;
+                container.style.backgroundImage = originalBgImage;
+                container.style.backgroundSize = originalBgSize;
+                showToast('生成失败，可能是图片跨域限制', 'error');
+            });
+        }
+
 
         function updateBoxUI(id, url) {
             const box = document.getElementById(`box-${id}`);
+            if (!box) return;
             const img = box.querySelector('img');
             box.classList.remove('loading');
             
             if (url) {
                 const tempImg = new Image();
+                tempImg.crossOrigin = "anonymous";
                 tempImg.onload = () => {
                     img.src = url;
                     box.classList.add('has-image');
@@ -284,7 +585,7 @@
         }
 
         function clearAll() {
-            if(confirm('确定清空？')) {
+            if(confirm('确定清空所有数据？')) {
                 localStorage.removeItem(storageKey);
                 location.reload();
             }
@@ -333,30 +634,24 @@
             let finalUrl = null;
 
             try {
-                // 1. 是图片链接?
                 if (val.match(/\.(jpeg|jpg|gif|png|webp)($|\?)/i)) {
                     finalUrl = val;
                 }
-                // 2. 是网易云链接? (包含 music.163.com)
                 else if (val.includes('music.163.com')) {
                     finalUrl = await fetchNeteaseCover(val);
                 }
-                // 3. 都不像? 尝试作为关键词搜索
-                else if (!val.startsWith('http')) {
-                    finalUrl = await searchAppleMusic(val);
-                }
-                // 4. 其他链接
                 else {
                     finalUrl = val; 
                 }
 
                 if (finalUrl) {
+                    appData.albums[currentBoxId] = finalUrl;
                     updateBoxUI(currentBoxId, finalUrl);
-                    saveData(currentBoxId, finalUrl);
+                    saveData();
                     showToast('获取成功', 'success');
                 } else {
                     box.classList.remove('loading');
-                    showToast('解析失败，建议直接搜 "专辑名"', 'error');
+                    showToast('链接无效', 'error');
                 }
 
             } catch (err) {
@@ -366,78 +661,52 @@
             }
         }
 
-        // --- Core: 增强版网易云抓取 (适配 GitHub Pages) ---
+        // --- Core: Fetch Logic ---
         async function fetchNeteaseCover(inputUrl) {
-            // 正则匹配: 兼容 ?id=xxx 和 /album/xxx 两种格式
             const idMatch = inputUrl.match(/(?:[?&]id=|\/album\/)(\d+)/);
             if (!idMatch) return null;
             const id = idMatch[1];
             const targetApi = `http://music.163.com/api/album/${id}`;
-            const timestamp = Date.now(); // 关键: 防止代理缓存
+            const timestamp = Date.now(); 
 
-            // 定义代理列表 (优先使用 corsproxy.io, 它是专门为跨域设计的)
             const proxies = [
-                // 线路 1: corsproxy.io (通常最稳)
-                (url) => `https://corsproxy.io/?url=${encodeURIComponent(url)}&t=${timestamp}`,
-                // 线路 2: allorigins (备用)
-                (url) => `https://api.allorigins.win/get?url=${encodeURIComponent(url)}&t=${timestamp}`,
-                // 线路 3: codetabs (备备用)
-                (url) => `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(url)}&t=${timestamp}`
+                {
+                    url: (url) => `https://api.allorigins.win/get?url=${encodeURIComponent(url)}&t=${timestamp}`,
+                    type: 'json-wrap'
+                },
+                {
+                    url: (url) => `https://thingproxy.freeboard.io/fetch/${url}`,
+                    type: 'direct'
+                },
+                {
+                    url: (url) => `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(url)}&t=${timestamp}`,
+                    type: 'direct'
+                }
             ];
 
-            for (const createProxyUrl of proxies) {
+            for (const proxy of proxies) {
                 try {
-                    const proxyUrl = createProxyUrl(targetApi);
-                    console.log('Trying proxy:', proxyUrl);
-                    
+                    const proxyUrl = proxy.url(targetApi);
                     const res = await fetch(proxyUrl, { 
                         method: 'GET',
-                        signal: AbortSignal.timeout(6000) 
+                        signal: AbortSignal.timeout(5000) 
                     });
-                    
                     if (!res.ok) continue;
 
-                    const data = await res.json();
-                    
-                    // 处理不同代理的返回结构
-                    let json = data;
-                    if (data.contents) {
-                        try {
-                            json = JSON.parse(data.contents);
-                        } catch(e) { json = data.contents; } // 可能是纯对象
+                    let data = await res.json();
+                    if (proxy.type === 'json-wrap' && data.contents) {
+                        try { data = JSON.parse(data.contents); } catch(e) { continue; } 
                     }
 
-                    if (json && json.album && json.album.picUrl) {
-                        // 强制 HTTPS 并获取中等尺寸图片
-                        let pic = json.album.picUrl;
+                    if (data && data.album && data.album.picUrl) {
+                        let pic = data.album.picUrl;
                         if(pic.startsWith('http://')) pic = pic.replace('http://', 'https://');
                         return pic + '?param=500y500';
                     }
-                } catch (e) {
-                    console.warn('Proxy error:', e);
-                    continue;
-                }
-            }
-            // 所有的代理都失败了? 尝试降级为搜专辑名 (如果能提取的话)
-            return null;
-        }
-
-        // --- Core: Apple Music 搜索 (无需代理，HTTPS友好) ---
-        async function searchAppleMusic(keyword) {
-            const apiUrl = `https://itunes.apple.com/search?term=${encodeURIComponent(keyword)}&entity=album&limit=1&country=CN`;
-            try {
-                const res = await fetch(apiUrl);
-                const data = await res.json();
-                if (data.resultCount > 0) {
-                    // 获取高清图
-                    return data.results[0].artworkUrl100.replace('100x100bb', '600x600bb');
-                }
-            } catch (e) {
-                console.error("iTunes search failed", e);
+                } catch (e) { continue; }
             }
             return null;
         }
-
     </script>
 </body>
 </html>

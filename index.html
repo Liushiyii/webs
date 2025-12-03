@@ -352,7 +352,7 @@
                 if (val.match(/\.(jpeg|jpg|gif|png|webp)($|\?)/i)) {
                     finalUrl = val;
                 }
-                // 策略 2: 网易云链接?
+                // 策略 2: 网易云链接? (包含 music.163.com)
                 else if (val.includes('music.163.com')) {
                     finalUrl = await fetchNeteaseCover(val);
                 }
@@ -381,9 +381,13 @@
             }
         }
 
-        // 核心：网易云获取 (双线路 + 修正 HTTP)
+        // 核心：网易云获取 (双线路 + 修正 HTTP + 兼容手机分享文案)
         async function fetchNeteaseCover(inputUrl) {
-            const idMatch = inputUrl.match(/[?&]id=(\d+)/);
+            // 升级正则：同时匹配 "id=xxx" 和 "/album/xxx"
+            // 手机分享链接如：http://music.163.com/album/7542/?userid=...
+            // 网页链接如：https://music.163.com/#/album?id=3093066
+            const idMatch = inputUrl.match(/(?:[?&]id=|\/album\/)(\d+)/);
+            
             if (!idMatch) return null;
             const id = idMatch[1];
             const targetApi = `http://music.163.com/api/album/${id}`;
